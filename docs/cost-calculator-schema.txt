@@ -1,0 +1,141 @@
+// Cost Calculator Schema for Hexaphexah Project
+// Version: 1.0.0
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Material base costs and properties
+model MaterialCost {
+  id            String   @id @default(uuid())
+  materialType  String   // polyimide, aerogel, titanium, adhesive
+  grade         String   // standard, premium
+  basePrice     Float    // per unit (m² or kg)
+  currency      String   @default("USD")
+  unit          String   // m², kg, etc
+  wastageRate   Float    // percentage
+  minimumOrder  Float?
+  leadTime      Int?     // days
+  validFrom     DateTime @default(now())
+  validTo       DateTime?
+  priceHistory  MaterialPriceHistory[]
+  supplier      Supplier @relation(fields: [supplierId], references: [id])
+  supplierId    String
+
+  @@unique([materialType, grade, validFrom])
+}
+
+// Historical price tracking
+model MaterialPriceHistory {
+  id            String   @id @default(uuid())
+  material      MaterialCost @relation(fields: [materialId], references: [id])
+  materialId    String
+  price         Float
+  date          DateTime @default(now())
+  reason        String?  // reason for price change
+}
+
+// Supplier/Manufacturer information
+model Supplier {
+  id            String   @id @default(uuid())
+  name          String
+  type          String   // manufacturer, supplier
+  costMultiplier Float   // manufacturing cost multiplier
+  materials     MaterialCost[]
+  bulkDiscounts BulkDiscount[]
+  leadTime      Int      // typical lead time in days
+  minOrderValue Float?   // minimum order value
+  currency      String   @default("USD")
+  active        Boolean  @default(true)
+  contacts      Contact[]
+  certifications Certification[]
+}
+
+// Bulk discount tiers
+model BulkDiscount {
+  id          String   @id @default(uuid())
+  supplier    Supplier @relation(fields: [supplierId], references: [id])
+  supplierId  String
+  minQuantity Int
+  discount    Float    // percentage
+  validFrom   DateTime @default(now())
+  validTo     DateTime?
+}
+
+// Supplier certifications
+model Certification {
+  id          String   @id @default(uuid())
+  supplier    Supplier @relation(fields: [supplierId], references: [id])
+  supplierId  String
+  type        String   // ISO 9001, AS9100, etc
+  number      String
+  issueDate   DateTime
+  expiryDate  DateTime
+  status      String   // active, expired, suspended
+}
+
+// Contact information
+model Contact {
+  id          String   @id @default(uuid())
+  supplier    Supplier @relation(fields: [supplierId], references: [id])
+  supplierId  String
+  name        String
+  role        String
+  email       String
+  phone       String?
+  primary     Boolean  @default(false)
+}
+
+// Panel size configurations
+model PanelSize {
+  id          String   @id @default(uuid())
+  name        String   // e.g., "500x500"
+  width       Float    // mm
+  height      Float    // mm
+  area        Float    // m²
+  active      Boolean  @default(true)
+}
+
+// Manufacturing process costs
+model ProcessCost {
+  id          String   @id @default(uuid())
+  processType String   // cutting, bonding, etc
+  baseRate    Float    // per hour or per unit
+  setupCost   Float
+  currency    String   @default("USD")
+  validFrom   DateTime @default(now())
+  validTo     DateTime?
+}
+
+// Cost estimates history
+model CostEstimate {
+  id            String   @id @default(uuid())
+  quantity      Int
+  panelSize     String
+  materialGrade String
+  supplier      String
+  materialCosts Json     // breakdown of material costs
+  processCosts  Json     // breakdown of process costs
+  totalCost     Float
+  unitCost      Float
+  currency      String   @default("USD")
+  createdAt     DateTime @default(now())
+  validFor      DateTime // quote validity period
+  status        String   // draft, sent, accepted, expired
+}
+
+// Material combination rules
+model MaterialCompatibility {
+  id              String   @id @default(uuid())
+  primaryMaterial String
+  secondaryMaterial String
+  compatible      Boolean
+  notes           String?
+  validFrom       DateTime @default(now())
+  validTo         DateTime?
+}

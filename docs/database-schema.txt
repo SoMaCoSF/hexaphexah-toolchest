@@ -1,0 +1,159 @@
+// Database Schema for Aerogel-Polyimide Composite Project
+// Version: 1.0.0
+// Description: Comprehensive schema for tracking materials, properties, and manufacturing processes
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Material Core Properties
+model Material {
+  id                String              @id @default(uuid())
+  name              String              @unique
+  type              MaterialType
+  manufacturer      Manufacturer        @relation(fields: [manufacturerId], references: [id])
+  manufacturerId    String
+  properties        MaterialProperty[]
+  thermalProperties ThermalProperty[]
+  mechanicalTests   MechanicalTest[]
+  composites        CompositeMaterial[]
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  @@index([type])
+}
+
+// Manufacturer Information
+model Manufacturer {
+  id            String     @id @default(uuid())
+  name          String     @unique
+  contactInfo   String
+  website       String
+  materials     Material[]
+  productCodes  String[]
+  certifications String[]
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+}
+
+// Material Properties (aligned with .zfab format)
+model MaterialProperty {
+  id          String   @id @default(uuid())
+  material    Material @relation(fields: [materialId], references: [id])
+  materialId  String
+  property    String
+  value       Float
+  unit        String
+  testMethod  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([materialId, property])
+}
+
+// Thermal Properties
+model ThermalProperty {
+  id                String   @id @default(uuid())
+  material          Material @relation(fields: [materialId], references: [id])
+  materialId        String
+  conductivity      Float
+  maxTemperature    Float
+  thermalExpansion  Float
+  specificHeat      Float
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+// Mechanical Testing Results
+model MechanicalTest {
+  id          String   @id @default(uuid())
+  material    Material @relation(fields: [materialId], references: [id])
+  materialId  String
+  testType    String
+  value       Float
+  unit        String
+  testDate    DateTime
+  testMethod  String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// Composite Material Combinations
+model CompositeMaterial {
+  id            String   @id @default(uuid())
+  name          String   @unique
+  materials     Material[]
+  ratio         Float[]
+  properties    Json
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// Manufacturing Process Tracking
+model ManufacturingBatch {
+  id            String   @id @default(uuid())
+  composite     CompositeMaterial @relation(fields: [compositeId], references: [id])
+  compositeId   String
+  batchNumber   String   @unique
+  parameters    Json
+  startDate     DateTime
+  endDate       DateTime?
+  yield         Float?
+  quality       QualityCheck[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// Quality Control
+model QualityCheck {
+  id            String            @id @default(uuid())
+  batch         ManufacturingBatch @relation(fields: [batchId], references: [id])
+  batchId       String
+  parameter     String
+  value         Float
+  specification Float[]  // [min, max]
+  passed        Boolean
+  checkDate     DateTime
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// Equipment Tracking
+model Equipment {
+  id            String   @id @default(uuid())
+  name          String
+  type          String
+  manufacturer  String
+  serialNumber  String?
+  calibrationDue DateTime?
+  maintenance   MaintenanceLog[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// Equipment Maintenance Log
+model MaintenanceLog {
+  id          String    @id @default(uuid())
+  equipment   Equipment @relation(fields: [equipmentId], references: [id])
+  equipmentId String
+  date        DateTime
+  type        String
+  description String
+  technician  String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+enum MaterialType {
+  AEROGEL
+  POLYIMIDE
+  SILICONE
+  TITANIUM
+  D3O
+  COMPOSITE
+}
